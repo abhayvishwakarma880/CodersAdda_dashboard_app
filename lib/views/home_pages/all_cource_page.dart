@@ -69,7 +69,14 @@ class _CoursePageState extends State<AllCoursePage>
                 _buildTechnologyFilter(viewModel),
 
                 // Courses Grid
-                Expanded(child: _buildCoursesGrid(context, viewModel)),
+                Expanded(
+                  child: viewModel.isLoading
+                      ? Center(child: CircularProgressIndicator())
+                      : RefreshIndicator(
+                          onRefresh: () => viewModel.fetchCourses(),
+                          child: _buildCoursesGrid(context, viewModel),
+                        ),
+                ),
               ],
             );
           },

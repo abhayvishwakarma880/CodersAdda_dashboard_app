@@ -3,56 +3,100 @@ import 'package:coders_adda_app/services/navigation_service.dart';
 import 'package:coders_adda_app/utils/app_colors/app_theme.dart';
 import 'package:coders_adda_app/utils/app_sizer/app_sizer.dart';
 import 'package:coders_adda_app/veiw_model/profile_viewmodel.dart';
+import 'package:coders_adda_app/veiw_model/auth_viewmodel.dart';
 import 'package:coders_adda_app/views/my_owened_courses/my_learning_page.dart';
 import 'package:coders_adda_app/views/profile_pages/edite_profile.dart';
 import 'package:coders_adda_app/views/subscription_pages/subscrption_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-class ProfilePage extends StatelessWidget {
-  final ProfileViewModel viewModel = ProfileViewModel();
+class ProfilePage extends StatefulWidget {
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ProfileViewModel>(context, listen: false).fetchUserProfile();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => viewModel,
-      child: Scaffold(
-        backgroundColor: AppColors.backgroundColor,
-        appBar: AppBar(
-          title: Text(
-            'My Profile',
-            style: TextStyle(
-              fontSize: AppSizer.deviceSp20,
-              fontWeight: FontWeight.bold,
-            ),
+    return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
+      appBar: AppBar(
+        title: Text(
+          'My Profile',
+          style: TextStyle(
+            fontSize: AppSizer.deviceSp20,
+            fontWeight: FontWeight.bold,
           ),
-          actions: [
-            IconButton(
-              icon: Icon(Icons.edit),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EditProfilePage(user: viewModel.user),
-                  ),
-                );
-              },
-            ),
-          ],
         ),
-        body: Consumer<ProfileViewModel>(
-          builder: (context, viewModel, child) {
-            return SingleChildScrollView(
+        actions: [
+          Consumer<ProfileViewModel>(
+            builder: (context, viewModel, child) {
+              if (viewModel.user == null) return SizedBox();
+              return IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EditProfilePage(user: viewModel.user!),
+                    ),
+                  );
+                  // Refresh profile when coming back from Edit Profile
+                  viewModel.fetchUserProfile();
+                },
+              );
+            },
+          ),
+        ],
+      ),
+      body: Consumer<ProfileViewModel>(
+        builder: (context, viewModel, child) {
+          if (viewModel.isLoading) {
+            return Center(child: CircularProgressIndicator());
+          }
+
+          if (viewModel.errorMessage != null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Error: ${viewModel.errorMessage}'),
+                  ElevatedButton(
+                    onPressed: () => viewModel.fetchUserProfile(),
+                    child: Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (viewModel.user == null) {
+            return Center(child: Text('No Profile Data Found'));
+          }
+
+          final user = viewModel.user!;
+
+          return RefreshIndicator(
+            onRefresh: () => viewModel.fetchUserProfile(),
+            child: SingleChildScrollView(
               padding: EdgeInsets.all(AppSizer.deviceWidth4),
               child: Column(
                 children: [
-                  _buildProfileHeader(viewModel.user),
+                  _buildProfileHeader(user),
                   SizedBox(height: AppSizer.deviceHeight1),
-                  _buildLearningStats(viewModel),
+                  _buildLearningStats(viewModel, user),
                   SizedBox(height: AppSizer.deviceHeight1),
-                  _buildStudentDetails(viewModel.user),
+                  _buildStudentDetails(user),
                   SizedBox(height: AppSizer.deviceHeight1),
-                  _buildSkillsSection(viewModel.user),
+                  _buildSkillsSection(user),
                   SizedBox(height: AppSizer.deviceHeight1),
                   _buildAchievementsSection(viewModel.achievements),
                   SizedBox(height: AppSizer.deviceHeight1),
@@ -60,9 +104,9 @@ class ProfilePage extends StatelessWidget {
                   SizedBox(height: AppSizer.deviceHeight4),
                 ],
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -88,7 +132,11 @@ class ProfilePage extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: AppColors.primaryColor, width: 3),
                     image: DecorationImage(
-                      image: NetworkImage(user.avatar),
+                      image: NetworkImage(
+                        user.profilePicture.isNotEmpty 
+                        ? user.profilePicture 
+                        : "https://via.placeholder.com/150"
+                      ),
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -119,7 +167,7 @@ class ProfilePage extends StatelessWidget {
                       ),
                       SizedBox(height: AppSizer.deviceHeight0_5),
                       Text(
-                        user.phone,
+                        user.mobile,
                         style: TextStyle(
                           color: AppColors.onSurfaceVariant,
                           fontSize: AppSizer.deviceSp16,
@@ -149,7 +197,7 @@ class ProfilePage extends StatelessWidget {
 
             // Bio
             Text(
-              user.bio,
+              user.about,
               style: TextStyle(
                 fontSize: AppSizer.deviceSp14,
                 color: AppColors.onSurfaceVariant,
@@ -165,15 +213,15 @@ class ProfilePage extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildSocialButton(Icons.code, 'GitHub', () {
-                  _launchUrl(user.githubUrl);
+                  _launchUrl(user.github);
                 }),
                 SizedBox(width: AppSizer.deviceWidth3),
                 _buildSocialButton(Icons.work, 'LinkedIn', () {
-                  _launchUrl(user.linkedinUrl);
+                  _launchUrl(user.linkedin);
                 }),
                 SizedBox(width: AppSizer.deviceWidth3),
                 _buildSocialButton(Icons.public, 'Portfolio', () {
-                  _launchUrl(user.portfolioUrl);
+                  _launchUrl(user.portfolio);
                 }),
               ],
             ),
@@ -217,7 +265,7 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildLearningStats(ProfileViewModel viewModel) {
+  Widget _buildLearningStats(ProfileViewModel viewModel, UserProfile user) {
     return Card(
       elevation: 3,
       child: Padding(
@@ -226,21 +274,21 @@ class ProfilePage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildStatItem(
-              '${viewModel.user.completedCourses}',
-              'Completed',
-              Icons.check_circle,
+              '${user.walletBalance}',
+              'Wallet',
+              Icons.account_balance_wallet,
               AppColors.successColor,
             ),
             _buildStatItem(
-              '${viewModel.user.ongoingCourses}',
-              'Ongoing',
-              Icons.play_circle_filled,
+              '${user.referralCount}',
+              'Referrals',
+              Icons.group,
               AppColors.primaryColor,
             ),
             _buildStatItem(
-              '${viewModel.totalLearningHours}+',
-              'Learning Hours',
-              Icons.schedule,
+               '0', // Placeholder for now
+              'Courses',
+              Icons.play_circle_filled,
               Colors.orange,
             ),
             _buildStatItem(
@@ -309,10 +357,11 @@ class ProfilePage extends StatelessWidget {
               ),
             ),
             SizedBox(height: AppSizer.deviceHeight2),
-            _buildDetailRow('College', user.collegeName, Icons.school),
+            _buildDetailRow('College', user.college, Icons.school),
             _buildDetailRow('Course', user.course, Icons.menu_book),
+            _buildDetailRow('Branch', user.branch, Icons.account_tree),
             _buildDetailRow('Semester', user.semester, Icons.timeline),
-            _buildDetailRow('Technology', user.technology, Icons.computer),
+            _buildDetailRow('Technology', user.technology.join(", "), Icons.computer),
           ],
         ),
       ),
@@ -354,7 +403,7 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _buildSkillsSection(UserProfile user) {
-    final skills = user.skills.split(', ');
+    final skills = user.skills;
 
     return Container(
       //height: ,
@@ -662,9 +711,13 @@ class ProfilePage extends StatelessWidget {
             child: Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Add logout logic here
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              await context.read<AuthViewModel>().signOut();
+              if (context.mounted) {
+                context.read<ProfileViewModel>().clearProfile();
+                Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+              }
             },
             child: Text('Logout'),
           ),

@@ -1,4 +1,5 @@
 import 'package:coders_adda_app/models/course_model.dart';
+import 'package:coders_adda_app/services/course_service.dart';
 import 'package:flutter/material.dart';
 
 class CourseViewModel with ChangeNotifier {
@@ -7,12 +8,78 @@ class CourseViewModel with ChangeNotifier {
   String _selectedTechnology = 'All';
   late TabController _tabController;
 
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
 
-  TabController get tabController => _tabController;
-
+  final CourseService _courseService = CourseService();
 
   CourseViewModel() {
-    _loadDemoData();
+    fetchCategories();
+    fetchCourses(); // Initial fetch for first tab (Free)
+  }
+
+  Future<void> fetchCategories() async {
+    final fetchedCategories = await _courseService.getCategories();
+    
+    // Always start with 'All'
+    _categories = [
+      CourseCategory(
+        id: 'all',
+        name: 'All',
+        technology: 'All',
+        courseCount: 0,
+        icon: '📚',
+      ),
+    ];
+
+    if (fetchedCategories.isNotEmpty) {
+      _categories.addAll(fetchedCategories);
+    }
+    notifyListeners();
+  }
+
+  Future<void> fetchCourses() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final priceType = _selectedTabIndex == 0 ? 'free' : 'paid';
+      _allCourses = await _courseService.getCoursesByFilter(priceType: priceType);
+      
+      // Update course count in categories based on fetched data
+      _updateCategoryCounts();
+    } catch (e) {
+      print('Error in CourseViewModel fetchCourses: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void _updateCategoryCounts() {
+    // Basic implementation: update counts for currently fetched list
+    for (var i = 1; i < _categories.length; i++) {
+      final tech = _categories[i].technology;
+      final count = _allCourses.where((c) => 
+        c.technology.toLowerCase() == tech.toLowerCase()).length;
+      
+      _categories[i] = CourseCategory(
+        id: _categories[i].id,
+        name: _categories[i].name,
+        technology: tech,
+        courseCount: count,
+        icon: _categories[i].icon,
+      );
+    }
+    
+    // Update 'All' count
+    _categories[0] = CourseCategory(
+      id: 'all',
+      name: 'All',
+      technology: 'All',
+      courseCount: _allCourses.length,
+      icon: '📚',
+    );
   }
 
   void initializeTabController(TickerProvider vsync) {
@@ -23,15 +90,17 @@ class CourseViewModel with ChangeNotifier {
   void _handleTabSelection() {
     if (_tabController.indexIsChanging) {
       _selectedTabIndex = _tabController.index;
-      notifyListeners();
+      _selectedTechnology = 'All'; // Reset filter when switching tabs
+      fetchCourses();
     }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    if (_tabController != null) _tabController.dispose();
     super.dispose();
   }
+
   int _selectedTabIndex = 0;
 
   List<Course> get allCourses => _allCourses;
@@ -39,153 +108,13 @@ class CourseViewModel with ChangeNotifier {
   String get selectedTechnology => _selectedTechnology;
   int get selectedTabIndex => _selectedTabIndex;
 
-  List<Course> get freeCourses => _allCourses.where((course) => course.isFree).toList();
-  List<Course> get paidCourses => _allCourses.where((course) => !course.isFree).toList();
-
   List<Course> get filteredCourses {
     if (_selectedTechnology == 'All') {
-      return _selectedTabIndex == 0 ? freeCourses : paidCourses;
+      return _allCourses;
     }
     
-    final courses = _selectedTabIndex == 0 ? freeCourses : paidCourses;
-    return courses.where((course) => course.technology == _selectedTechnology).toList();
-  }
-  void _loadDemoData() {
-
-    _categories = [
-      CourseCategory(
-        name: 'All',
-        technology: 'All',
-        courseCount: 12,
-        icon: '📚',
-      ),
-      CourseCategory(
-        name: 'Flutter',
-        technology: 'Flutter',
-        courseCount: 5,
-        icon: '📱',
-      ),
-      CourseCategory(
-        name: 'Android',
-        technology: 'Android',
-        courseCount: 3,
-        icon: '🤖',
-      ),
-      CourseCategory(
-        name: 'Web Dev',
-        technology: 'Web',
-        courseCount: 2,
-        icon: '🌐',
-      ),
-      CourseCategory(
-        name: 'AI/ML',
-        technology: 'AI',
-        courseCount: 2,
-        icon: '🧠',
-      ),
-    ];
-
-
-    _allCourses = [
-  Course(
-    id: '1',
-    title: 'Introduction to Flutter',
-    description: 'Learn the basics of Flutter development with Dart programming language. Perfect for beginners.',
-    instructor: 'Sarah Wilson',
-    price: 0,
-    thumbnail: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=400&h=250&fit=crop', // Flutter mobile development
-    category: 'Mobile Development',
-    technology: 'Flutter', 
-    isFree: true,
-    rating: 4.5,
-    totalStudents: 1500,
-    duration: '6 hours',
-    totalLessons: 12,
-    createdAt: DateTime.now().subtract(Duration(days: 30)), 
-  ),
-  Course(
-    id: '2',
-    title: 'Basics of HTML & CSS',
-    description: 'Start your web development journey with HTML and CSS fundamentals.',
-    instructor: 'Mike Chen',
-    price: 0,
-    thumbnail: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=400&h=250&fit=crop', // Web development code
-    category: 'Web Development',
-    technology: 'Web', 
-    isFree: true,
-    rating: 4.2,
-    totalStudents: 2300,
-    duration: '8 hours',
-    totalLessons: 15,
-    createdAt: DateTime.now().subtract(Duration(days: 45)), 
-  ),
-  Course(
-    id: '3',
-    title: 'Python for Beginners',
-    description: 'Learn Python programming fundamentals and build your first projects.',
-    instructor: 'Emily Davis',
-    price: 0,
-    thumbnail: 'https://images.unsplash.com/photo-1526379879527-8559ecfcaec0?w=400&h=250&fit=crop', // Python code
-    category: 'Programming',
-    technology: 'AI', 
-    isFree: true,
-    rating: 4.7,
-    totalStudents: 3200,
-    duration: '10 hours',
-    totalLessons: 18,
-    createdAt: DateTime.now().subtract(Duration(days: 60)), 
-  ),
-  Course(
-    id: '4',
-    title: 'Advanced Flutter Development',
-    description: 'Master advanced Flutter concepts, state management, and architecture patterns.',
-    instructor: 'Sarah Wilson',
-    price: 1999,
-    thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=250&fit=crop', // Advanced Flutter
-    category: 'Mobile Development',
-    technology: 'Flutter', 
-    isFree: false,
-    rating: 4.8,
-    totalStudents: 800,
-    duration: '15 hours',
-    totalLessons: 25,
-    createdAt: DateTime.now().subtract(Duration(days: 20)), 
-  ),
-  Course(
-    id: '5',
-    title: 'Complete Android Masterclass',
-    description: 'Become an expert Android developer with Kotlin and modern Android development.',
-    instructor: 'Raj Kumar',
-    price: 1499,
-    thumbnail: 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=250&fit=crop', // Android development
-    category: 'Mobile Development',
-    technology: 'Android', 
-    isFree: false,
-    rating: 4.6,
-    totalStudents: 1200,
-    duration: '20 hours',
-    totalLessons: 30,
-    createdAt: DateTime.now().subtract(Duration(days: 15)), 
-  ),
-  Course(
-    id: '6',
-    title: 'Machine Learning with Python',
-    description: 'Learn ML algorithms, data preprocessing, and model deployment.',
-    instructor: 'Dr. Anjali Sharma',
-    price: 2999,
-    thumbnail: 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=400&h=250&fit=crop', // Machine learning
-    category: 'Data Science',
-    technology: 'AI', 
-    isFree: false,
-    rating: 4.9,
-    totalStudents: 600,
-    duration: '25 hours',
-    totalLessons: 35,
-    createdAt: DateTime.now().subtract(Duration(days: 10)), 
-  ),
-];
-
-    notifyListeners();
+    return _allCourses.where((course) => 
+      course.technology.toLowerCase() == _selectedTechnology.toLowerCase()).toList();
   }
 
   void setSelectedTechnology(String technology) {
@@ -194,8 +123,11 @@ class CourseViewModel with ChangeNotifier {
   }
 
   void setSelectedTabIndex(int index) {
-    _selectedTabIndex = index;
-    notifyListeners();
+    if (_selectedTabIndex != index) {
+      _selectedTabIndex = index;
+      _selectedTechnology = 'All';
+      fetchCourses();
+    }
   }
 
   List<CourseModule> getCourseModules(String courseId) {

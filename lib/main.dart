@@ -7,8 +7,20 @@ import 'package:coders_adda_app/views/register_pages/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 
+import 'package:coders_adda_app/veiw_model/auth_viewmodel.dart';
+import 'package:coders_adda_app/veiw_model/profile_viewmodel.dart';
+import 'package:provider/provider.dart';
+
 void main() {
-  runApp(LearningApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthViewModel()),
+        ChangeNotifierProvider(create: (_) => ProfileViewModel()),
+      ],
+      child: LearningApp(),
+    ),
+  );
 }
 
 class LearningApp extends StatelessWidget {

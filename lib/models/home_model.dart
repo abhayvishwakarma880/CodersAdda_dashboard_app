@@ -1,3 +1,5 @@
+import 'package:coders_adda_app/models/course_model.dart';
+
 class HomeModel {
   final List<BannerItem> banners;
   final List<Course> coursesOnSale;
@@ -17,36 +19,39 @@ class HomeModel {
 }
 
 class BannerItem {
+  final String? id;
   final String title;
   final String subtitle;
   final String route;
   final String? imageUrl;
 
   BannerItem({
+    this.id,
     required this.title,
     required this.subtitle,
     required this.route,
     this.imageUrl,
   });
+
+  factory BannerItem.fromJson(Map<String, dynamic> json) {
+    String? _safeString(dynamic value) {
+      if (value == null) return null;
+      if (value is String) return value;
+      if (value is Map && value.containsKey('url')) return value['url']?.toString();
+      if (value is Map && value.containsKey('path')) return value['path']?.toString();
+      return value.toString();
+    }
+
+    return BannerItem(
+      id: _safeString(json['_id'] ?? json['id']),
+      title: _safeString(json['title']) ?? '',
+      subtitle: _safeString(json['subtitle']) ?? '',
+      route: _safeString(json['route']) ?? '',
+      imageUrl: _safeString(json['image'] ?? json['imageUrl'] ?? json['banner']),
+    );
+  }
 }
 
-class Course {
-  final String id;
-  final String title;
-  final String instructor;
-  final double price;
-  final String thumbnail;
-  final bool isFree;
-
-  Course({
-    required this.id,
-    required this.title,
-    required this.instructor,
-    required this.price,
-    required this.thumbnail,
-    this.isFree = false,
-  });
-}
 
 class PdfItem {
   final String id;

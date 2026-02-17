@@ -630,6 +630,7 @@ import 'package:coders_adda_app/views/navigation_class.dart';
 import 'package:coders_adda_app/views/register_pages/register_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:coders_adda_app/veiw_model/profile_viewmodel.dart';
 import 'package:coders_adda_app/utils/app_colors/app_theme.dart';
 import 'package:coders_adda_app/utils/app_sizer/app_sizer.dart';
 
@@ -643,6 +644,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
+  final TextEditingController _referralController = TextEditingController(); // Referral controller add karein
   final _formKey = GlobalKey<FormState>();
   
   // FocusNode add karein
@@ -879,6 +881,69 @@ class _LoginPageState extends State<LoginPage> {
                     }
                     return null;
                   },
+                ),
+              ),
+            
+            if (!_isOtpSent) SizedBox(height: AppSizer.deviceHeight2),
+
+            // Referral Code Field
+            if (!_isOtpSent)
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: TextFormField(
+                  controller: _referralController,
+                  style: TextStyle(
+                    fontSize: AppSizer.deviceSp16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Referral Code (Optional)',
+                    labelStyle: TextStyle(
+                      color: AppColors.onSurfaceVariant,
+                      fontSize: AppSizer.deviceSp14,
+                    ),
+                    prefixIcon: Container(
+                      margin: EdgeInsets.only(right: 8),
+                      child: Icon(
+                        Icons.card_giftcard_rounded,
+                        color: AppColors.primaryColor,
+                        size: AppSizer.deviceSp20,
+                      ),
+                    ),
+                    prefixIconConstraints: BoxConstraints(
+                      minWidth: 40,
+                      minHeight: 20,
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.grey.shade300,
+                        width: 1,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: AppColors.primaryColor,
+                        width: 2,
+                      ),
+                    ),
+                  ),
                 ),
               ),
 
@@ -1207,8 +1272,9 @@ SizedBox(height: AppSizer.deviceHeight2),
       // Send OTP case - keyboard band karein
       FocusScope.of(context).unfocus();
 
-      final response = await viewModel.loginWithPhone(
+      final response = await viewModel.requestOtp(
         _phoneController.text.trim(),
+        referralCode: _referralController.text.trim(),
       );
 
       if (response.success && response.verificationId != null) {
@@ -1247,9 +1313,18 @@ SizedBox(height: AppSizer.deviceHeight2),
       // Verify OTP case - keyboard band karein
       FocusScope.of(context).unfocus();
 
-      final response = await viewModel.verifyOtp(_otpController.text.trim());
+      final response = await viewModel.verifyOtp(
+        _phoneController.text.trim(),
+        _otpController.text.trim(),
+        referralCode: _referralController.text.trim(),
+      );
 
       if (response.success) {
+        // Fetch user profile after successful login
+        if (mounted) {
+          context.read<ProfileViewModel>().fetchUserProfile();
+        }
+        
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => MainNavigation()),
@@ -1277,6 +1352,7 @@ SizedBox(height: AppSizer.deviceHeight2),
     _otpFocusNode.dispose();
     _phoneController.dispose();
     _otpController.dispose();
+    _referralController.dispose();
     super.dispose();
   }
 }

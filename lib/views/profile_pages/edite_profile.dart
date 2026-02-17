@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:coders_adda_app/models/profile_model.dart';
 import 'package:coders_adda_app/utils/app_colors/app_theme.dart';
 import 'package:coders_adda_app/utils/app_sizer/app_sizer.dart';
@@ -13,72 +14,68 @@ class EditProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ProfileViewModel(),
-      child: Scaffold(
-        backgroundColor: AppColors.backgroundColor,
-        appBar: AppBar(
-          title: Text(
-            'Edit Profile',
-            style: TextStyle(
-              fontSize: AppSizer.deviceSp20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () {
-              _showDiscardDialog(context);
-            },
-          ),
-          actions: [
-            Consumer<ProfileViewModel>(
-              builder: (context, viewModel, child) {
-                return TextButton(
-                  onPressed: () => _saveProfile(context, viewModel),
-                  child: Text(
-                    'Save',
-                    style: TextStyle(
-                      fontSize: AppSizer.deviceSp16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-        body: Consumer<ProfileViewModel>(
-          builder: (context, viewModel, child) {
-            if (!viewModel.initialized) {
-              viewModel.initializeWithUser(user);
-            }
+    return Consumer<ProfileViewModel>(
+      builder: (context, viewModel, child) {
+        if (!viewModel.initialized) {
+          viewModel.initializeWithUser(user);
+        }
 
-            return SingleChildScrollView(
-              padding: EdgeInsets.all(AppSizer.deviceWidth4),
-              child: Column(
-                children: [
-                  _buildProfilePhotoSection(context, viewModel),
-                  SizedBox(height: AppSizer.deviceHeight4),
-                  _buildPersonalInfoSection(viewModel),
-                  SizedBox(height: AppSizer.deviceHeight4),
-                  _buildEducationSection(viewModel),
-                  SizedBox(height: AppSizer.deviceHeight4),
-                  _buildSocialLinksSection(viewModel),
-                  SizedBox(height: AppSizer.deviceHeight4),
-                  _buildBioSection(viewModel),
-                  SizedBox(height: AppSizer.deviceHeight6),
-                  
-                  _buildBottomSaveButton(context, viewModel),
-                  SizedBox(height: AppSizer.deviceHeight2),
-
-                ],
+        return Scaffold(
+          backgroundColor: AppColors.backgroundColor,
+          appBar: AppBar(
+            title: Text(
+              'Edit Profile',
+              style: TextStyle(
+                fontSize: AppSizer.deviceSp20,
+                fontWeight: FontWeight.bold,
               ),
-            );
-          },
-        ),
-      ),
+            ),
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => _showDiscardDialog(context),
+            ),
+            actions: [
+              TextButton(
+                onPressed: viewModel.isLoading ? null : () => _saveProfile(context, viewModel),
+                child: viewModel.isLoading 
+                  ? SizedBox(
+                      height: AppSizer.deviceSp16,
+                      width: AppSizer.deviceSp16,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : Text(
+                      'Save',
+                      style: TextStyle(
+                        fontSize: AppSizer.deviceSp16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+              ),
+            ],
+          ),
+          body: SingleChildScrollView(
+            padding: EdgeInsets.all(AppSizer.deviceWidth4),
+            child: Column(
+              children: [
+                _buildProfilePhotoSection(context, viewModel),
+                SizedBox(height: AppSizer.deviceHeight4),
+                _buildPersonalInfoSection(viewModel),
+                SizedBox(height: AppSizer.deviceHeight4),
+                _buildEducationSection(viewModel),
+                SizedBox(height: AppSizer.deviceHeight4),
+                _buildSocialLinksSection(viewModel),
+                SizedBox(height: AppSizer.deviceHeight4),
+                _buildBioSection(viewModel),
+                SizedBox(height: AppSizer.deviceHeight6),
+                
+                _buildBottomSaveButton(context, viewModel),
+                SizedBox(height: AppSizer.deviceHeight2),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -92,7 +89,7 @@ class EditProfilePage extends StatelessWidget {
             width: double.infinity,
             height: AppSizer.deviceHeight7,
             child: ElevatedButton(
-              onPressed: () => _saveProfile(context, viewModel),
+              onPressed: viewModel.isLoading ? null : () => _saveProfile(context, viewModel),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryColor,
                 foregroundColor: Colors.white,
@@ -101,25 +98,27 @@ class EditProfilePage extends StatelessWidget {
                 ),
                 elevation: 2,
               ),
-              child: Text(
-                'Save Changes',
-                style: TextStyle(
-                  fontSize: AppSizer.deviceSp16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: viewModel.isLoading 
+                ? SizedBox(
+                    height: AppSizer.deviceSp20,
+                    width: AppSizer.deviceSp20,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                : Text(
+                    'Save Changes',
+                    style: TextStyle(
+                      fontSize: AppSizer.deviceSp16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
             ),
           ),
-          
           SizedBox(height: AppSizer.deviceHeight2),
-          
           SizedBox(
             width: double.infinity,
             height: AppSizer.deviceHeight6,
             child: OutlinedButton(
-              onPressed: () {
-                _showDiscardDialog(context);
-              },
+              onPressed: () => _showDiscardDialog(context),
               style: OutlinedButton.styleFrom(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -163,14 +162,15 @@ class EditProfilePage extends StatelessWidget {
                       width: 3,
                     ),
                     image: DecorationImage(
-                      image: NetworkImage(viewModel.avatarController.text.isEmpty 
-                          ? user.avatar 
-                          : viewModel.avatarController.text),
+                      image: viewModel.selectedImage != null
+                          ? FileImage(viewModel.selectedImage!) as ImageProvider
+                          : NetworkImage(user.profilePicture.isNotEmpty 
+                              ? user.profilePicture 
+                              : "https://via.placeholder.com/150"),
                       fit: BoxFit.cover,
                     ),
                   ),
                 ),
-                
                 Positioned(
                   bottom: 0,
                   right: 0,
@@ -190,9 +190,7 @@ class EditProfilePage extends StatelessWidget {
                 ),
               ],
             ),
-            
             SizedBox(height: AppSizer.deviceHeight2),
-            
             Text(
               'Profile Photo',
               style: TextStyle(
@@ -201,22 +199,12 @@ class EditProfilePage extends StatelessWidget {
                 color: AppColors.textColor,
               ),
             ),
-            
             SizedBox(height: AppSizer.deviceHeight1),
-            
-            TextFormField(
-              controller: viewModel.avatarController,
-              decoration: InputDecoration(
-                labelText: 'Profile Image URL',
-                hintText: 'Enter image URL',
-                prefixIcon: Icon(Icons.link, color: AppColors.primaryColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryColor),
-                ),
+            Text(
+              'Only Camera and Gallery uploads allowed',
+              style: TextStyle(
+                fontSize: AppSizer.deviceSp12,
+                color: AppColors.onSurfaceVariant,
               ),
             ),
           ],
@@ -244,58 +232,24 @@ class EditProfilePage extends StatelessWidget {
                 color: AppColors.textColor,
               ),
             ),
-            
             SizedBox(height: AppSizer.deviceHeight3),
-            
             TextFormField(
               controller: viewModel.nameController,
               decoration: InputDecoration(
                 labelText: 'Full Name',
                 prefixIcon: Icon(Icons.person, color: AppColors.primaryColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryColor),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            
             SizedBox(height: AppSizer.deviceHeight2),
-            
             TextFormField(
               controller: viewModel.emailController,
               decoration: InputDecoration(
                 labelText: 'Email Address',
                 prefixIcon: Icon(Icons.email, color: AppColors.primaryColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryColor),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
               keyboardType: TextInputType.emailAddress,
-            ),
-            
-            SizedBox(height: AppSizer.deviceHeight2),
-            
-            TextFormField(
-              controller: viewModel.phoneController,
-              decoration: InputDecoration(
-                labelText: 'Phone Number',
-                prefixIcon: Icon(Icons.phone, color: AppColors.primaryColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryColor),
-                ),
-              ),
-              keyboardType: TextInputType.phone,
             ),
           ],
         ),
@@ -322,43 +276,25 @@ class EditProfilePage extends StatelessWidget {
                 color: AppColors.textColor,
               ),
             ),
-            
             SizedBox(height: AppSizer.deviceHeight3),
-            
             TextFormField(
               controller: viewModel.collegeController,
               decoration: InputDecoration(
                 labelText: 'College/University',
                 prefixIcon: Icon(Icons.school, color: AppColors.primaryColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryColor),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            
             SizedBox(height: AppSizer.deviceHeight2),
-            
             TextFormField(
               controller: viewModel.courseController,
               decoration: InputDecoration(
                 labelText: 'Course/Degree',
                 prefixIcon: Icon(Icons.menu_book, color: AppColors.primaryColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryColor),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            
             SizedBox(height: AppSizer.deviceHeight2),
-            
             Row(
               children: [
                 Expanded(
@@ -367,36 +303,40 @@ class EditProfilePage extends StatelessWidget {
                     decoration: InputDecoration(
                       labelText: 'Semester',
                       prefixIcon: Icon(Icons.timeline, color: AppColors.primaryColor),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppColors.primaryColor),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
-                
                 SizedBox(width: AppSizer.deviceWidth2),
-                
                 Expanded(
                   child: TextFormField(
-                    controller: viewModel.technologyController,
+                    controller: viewModel.branchController,
                     decoration: InputDecoration(
-                      labelText: 'Technology',
-                      prefixIcon: Icon(Icons.computer, color: AppColors.primaryColor),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppColors.primaryColor),
-                      ),
+                      labelText: 'Branch',
+                      prefixIcon: Icon(Icons.account_tree, color: AppColors.primaryColor),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
               ],
+            ),
+            SizedBox(height: AppSizer.deviceHeight2),
+            TextFormField(
+              controller: viewModel.technologyController,
+              decoration: InputDecoration(
+                labelText: 'Technologies (Comma separated)',
+                prefixIcon: Icon(Icons.computer, color: AppColors.primaryColor),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            SizedBox(height: AppSizer.deviceHeight2),
+            TextFormField(
+              controller: viewModel.skillsController,
+              decoration: InputDecoration(
+                labelText: 'Skills (Comma separated)',
+                prefixIcon: Icon(Icons.auto_awesome, color: AppColors.primaryColor),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ],
         ),
@@ -423,55 +363,31 @@ class EditProfilePage extends StatelessWidget {
                 color: AppColors.textColor,
               ),
             ),
-            
             SizedBox(height: AppSizer.deviceHeight3),
-            
             TextFormField(
               controller: viewModel.githubController,
               decoration: InputDecoration(
                 labelText: 'GitHub Profile URL',
                 prefixIcon: Icon(Icons.code, color: AppColors.primaryColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryColor),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            
             SizedBox(height: AppSizer.deviceHeight2),
-            
             TextFormField(
               controller: viewModel.linkedinController,
               decoration: InputDecoration(
                 labelText: 'LinkedIn Profile URL',
                 prefixIcon: Icon(Icons.work, color: AppColors.primaryColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryColor),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            
             SizedBox(height: AppSizer.deviceHeight2),
-            
             TextFormField(
               controller: viewModel.portfolioController,
               decoration: InputDecoration(
                 labelText: 'Portfolio Website',
                 prefixIcon: Icon(Icons.public, color: AppColors.primaryColor),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryColor),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -499,22 +415,14 @@ class EditProfilePage extends StatelessWidget {
                 color: AppColors.textColor,
               ),
             ),
-            
             SizedBox(height: AppSizer.deviceHeight2),
-            
             TextFormField(
               controller: viewModel.bioController,
               maxLines: 4,
               decoration: InputDecoration(
                 labelText: 'Bio/Description',
                 alignLabelWithHint: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primaryColor),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -554,11 +462,18 @@ class EditProfilePage extends StatelessWidget {
   }
 
   void _pickImage(ImageSource source, ProfileViewModel viewModel) async {
-
-    print('Picking image from: $source');
+    final ImagePicker _picker = ImagePicker();
+    try {
+      final XFile? image = await _picker.pickImage(source: source);
+      if (image != null) {
+        viewModel.setSelectedImage(File(image.path));
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+    }
   }
 
-  void _saveProfile(BuildContext context, ProfileViewModel viewModel) {
+  void _saveProfile(BuildContext context, ProfileViewModel viewModel) async {
     if (viewModel.nameController.text.isEmpty) {
       _showErrorDialog(context, 'Please enter your name');
       return;
@@ -569,14 +484,19 @@ class EditProfilePage extends StatelessWidget {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Profile updated successfully!'),
-        backgroundColor: AppColors.successColor,
-      ),
-    );
+    final success = await viewModel.updateUserProfile();
 
-    Navigator.pop(context);
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Profile updated successfully!'),
+          backgroundColor: AppColors.successColor,
+        ),
+      );
+      Navigator.pop(context);
+    } else {
+      _showErrorDialog(context, viewModel.errorMessage ?? 'Failed to update profile');
+    }
   }
 
   void _showDiscardDialog(BuildContext context) {
@@ -586,18 +506,13 @@ class EditProfilePage extends StatelessWidget {
         title: Text('Discard Changes?'),
         content: Text('Are you sure you want to discard your changes?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
           FilledButton(
             onPressed: () {
               Navigator.pop(context); 
               Navigator.pop(context); 
             },
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: Text('Discard'),
           ),
         ],
@@ -612,10 +527,7 @@ class EditProfilePage extends StatelessWidget {
         title: Text('Error'),
         content: Text(message),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('OK'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('OK')),
         ],
       ),
     );

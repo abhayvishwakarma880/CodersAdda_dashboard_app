@@ -29,13 +29,27 @@ class PdfItem {
 }
 
 class PdfCategory {
+  final String id;
   final String name;
   final int pdfCount;
   final String icon;
+  final bool isActive;
 
   PdfCategory({
+    required this.id,
     required this.name,
-    required this.pdfCount,
-    required this.icon,
+    this.pdfCount = 0,
+    this.icon = '📚',
+    this.isActive = true,
   });
+
+  factory PdfCategory.fromJson(Map<String, dynamic> json) {
+    return PdfCategory(
+      id: json['_id'] ?? '',
+      name: json['name'] ?? '',
+      pdfCount: json['pdfCount'] ?? 0,
+      icon: json['icon'] ?? '📚',
+      isActive: json['isActive'] ?? true,
+    );
+  }
 }

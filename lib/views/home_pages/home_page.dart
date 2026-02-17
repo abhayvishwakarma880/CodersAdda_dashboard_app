@@ -1,4 +1,5 @@
 import 'package:coders_adda_app/models/home_model.dart';
+import 'package:coders_adda_app/models/course_model.dart';
 import 'package:coders_adda_app/services/navigation_service.dart';
 import 'package:coders_adda_app/utils/app_colors/app_theme.dart';
 import 'package:coders_adda_app/utils/app_sizer/app_sizer.dart';
@@ -15,6 +16,8 @@ import 'package:coders_adda_app/views/search_page.dart/search_page.dart';
 import 'package:coders_adda_app/views/subscription_pages/subscrption_page.dart';
 import 'package:coders_adda_app/views/training_pages/training_courses.dart';
 import 'package:coders_adda_app/views/wallet_pages/wallets_page.dart';
+import 'package:coders_adda_app/veiw_model/profile_viewmodel.dart';
+import 'package:coders_adda_app/veiw_model/auth_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -113,84 +116,89 @@ class HomePage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: EdgeInsets.all(AppSizer.deviceWidth4),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Welcome Back!',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: AppSizer.deviceSp18,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        SizedBox(height: AppSizer.deviceHeight1),
-                        Row(
+                  Consumer<ProfileViewModel>(
+                    builder: (context, profileVM, child) {
+                      final user = profileVM.user;
+                      return Padding(
+                        padding: EdgeInsets.all(AppSizer.deviceWidth4),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: AppSizer.deviceWidth12,
-                              height: AppSizer.deviceWidth12,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2,
-                                ),
-                                image: DecorationImage(
-                                  image: NetworkImage(
-                                    'https://i.pravatar.cc/150?img=47',
-                                  ),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: AppSizer.deviceWidth3),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Abc',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: AppSizer.deviceSp18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  SizedBox(height: AppSizer.deviceHeight0_5),
-                                  Text(
-                                    'abc.@email.com',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: AppSizer.deviceSp14,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: EdgeInsets.all(AppSizer.deviceWidth1),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.verified,
+                            Text(
+                              'Welcome Back!',
+                              style: TextStyle(
                                 color: Colors.white,
-                                size: AppSizer.deviceSp16,
+                                fontSize: AppSizer.deviceSp18,
+                                fontWeight: FontWeight.w500,
                               ),
+                            ),
+                            SizedBox(height: AppSizer.deviceHeight1),
+                            Row(
+                              children: [
+                                Container(
+                                  width: AppSizer.deviceWidth12,
+                                  height: AppSizer.deviceWidth12,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
+                                    ),
+                                    image: DecorationImage(
+                                      image: NetworkImage(
+                                        user?.profilePicture ?? 'https://via.placeholder.com/150',
+                                      ),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: AppSizer.deviceWidth3),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        user?.name ?? 'Student',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: AppSizer.deviceSp18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      SizedBox(height: AppSizer.deviceHeight0_5),
+                                      Text(
+                                        user?.email ?? 'student@email.com',
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: AppSizer.deviceSp14,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: EdgeInsets.all(AppSizer.deviceWidth1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.verified,
+                                    color: Colors.white,
+                                    size: AppSizer.deviceSp16,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -290,8 +298,13 @@ class HomePage extends StatelessWidget {
                       thickness: 1,
                       color: AppColors.outline.withOpacity(0.3),
                     ),
-                    _drawerItem(Icons.logout, 'Logout', Colors.red, () {
+                    _drawerItem(Icons.logout, 'Logout', Colors.red, () async {
                       Navigator.pop(context);
+                      await context.read<AuthViewModel>().signOut();
+                      if (context.mounted) {
+                        context.read<ProfileViewModel>().clearProfile();
+                        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                      }
                     }),
                   ],
                 ),
@@ -383,12 +396,16 @@ class HomePage extends StatelessWidget {
           SizedBox(height: AppSizer.deviceHeight3),
           _buildPageCards(context),
           SizedBox(height: AppSizer.deviceHeight3),
-          _buildBannerSlider(context, viewModel.homeData.banners),
+          _buildBannerSlider(context, viewModel),
           SizedBox(height: AppSizer.deviceHeight3),
-          _buildCoursesOnSale(context, viewModel.homeData.coursesOnSale),
-          SizedBox(height: AppSizer.deviceHeight3),
-          _buildFreeCourses(context, viewModel.homeData.freeCourses),
-          SizedBox(height: AppSizer.deviceHeight3),
+          if (viewModel.isLoading && viewModel.homeData.coursesOnSale.isEmpty)
+            Center(child: CircularProgressIndicator())
+          else ...[
+            _buildCoursesOnSale(context, viewModel.homeData.coursesOnSale),
+            SizedBox(height: AppSizer.deviceHeight3),
+            _buildFreeCourses(context, viewModel.homeData.freeCourses),
+            SizedBox(height: AppSizer.deviceHeight3),
+          ],
           _buildQuizzesAmbassadorSection(context),
           SizedBox(height: AppSizer.deviceHeight3),
         ],
@@ -398,62 +415,67 @@ class HomePage extends StatelessWidget {
 
   // ===================== Welcome Section =====================
   Widget _buildWelcomeSection() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Consumer<ProfileViewModel>(
+      builder: (context, profileVM, child) {
+        final userName = profileVM.user?.name ?? 'Alex';
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Hello, Alex!',
-                  style: TextStyle(
-                    fontSize: AppSizer.deviceSp20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textColor,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      'Hello, $userName!',
+                      style: TextStyle(
+                        fontSize: AppSizer.deviceSp20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textColor,
+                      ),
+                    ),
+                    SizedBox(width: AppSizer.deviceWidth1),
+                    Icon(
+                      Icons.verified,
+                      color: Colors.blueAccent,
+                      size: AppSizer.deviceSp18,
+                    ),
+                  ],
                 ),
-                SizedBox(width: AppSizer.deviceWidth1),
-                Icon(
-                  Icons.verified,
-                  color: Colors.blueAccent,
-                  size: AppSizer.deviceSp18,
+                SizedBox(height: AppSizer.deviceHeight0_5),
+                Text(
+                  'What would you like to learn today?',
+                  style: TextStyle(
+                    fontSize: AppSizer.deviceSp16,
+                    color: AppColors.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
-            SizedBox(height: AppSizer.deviceHeight0_5),
-            Text(
-              'What would you like to learn today?',
-              style: TextStyle(
-                fontSize: AppSizer.deviceSp16,
-                color: AppColors.onSurfaceVariant,
+            Builder(
+              builder: (buildContext) => InkWell(
+                onTap: () {
+                  NavigationService.navigateTo(buildContext, SubscriptionPage());
+                },
+                borderRadius: BorderRadius.circular(50),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  padding: EdgeInsets.all(AppSizer.deviceWidth2),
+                  child: Icon(
+                    Icons.credit_card_rounded,
+                    color: Colors.blueAccent,
+                    size: AppSizer.deviceSp22,
+                  ),
+                ),
               ),
             ),
           ],
-        ),
-        Builder(
-          builder: (buildContext) => InkWell(
-            onTap: () {
-              NavigationService.navigateTo(buildContext, SubscriptionPage());
-            },
-            borderRadius: BorderRadius.circular(50),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.blueAccent.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              padding: EdgeInsets.all(AppSizer.deviceWidth2),
-              child: Icon(
-                Icons.credit_card_rounded,
-                color: Colors.blueAccent,
-                size: AppSizer.deviceSp22,
-              ),
-            ),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -554,8 +576,11 @@ class HomePage extends StatelessWidget {
 }
 
 //////////////////////////////////////////////////////
-Widget _buildBannerSlider(BuildContext context, List<BannerItem> banners) {
-  return BannerSliderWidget(banners: banners);
+Widget _buildBannerSlider(BuildContext context, HomeViewModel viewModel) {
+  return BannerSliderWidget(
+    banners: viewModel.homeData.banners,
+    isLoading: viewModel.isLoading,
+  );
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -586,10 +611,7 @@ Widget _buildCoursesOnSale(BuildContext context, List<Course> courses) {
             final course = courses[index];
             return GestureDetector(
               onTap: () {
-                NavigationService.navigateTo(
-                  context,
-                  TrendingCourseDetailPage(courseId: course.id),
-                );
+                NavigationService.navigateToCourseDetail(context, course);
               },
               child: Container(
                 width: AppSizer.deviceWidth43,
@@ -848,10 +870,7 @@ Widget _buildFreeCourses(BuildContext context, List<Course> courses) {
             final course = courses[index];
             return GestureDetector(
               onTap: () {
-                NavigationService.navigateTo(
-                  context,
-                  TrendingCourseDetailPage(courseId: course.id),
-                );
+                NavigationService.navigateToCourseDetail(context, course);
               },
               child: Container(
                 width: AppSizer.deviceWidth43,

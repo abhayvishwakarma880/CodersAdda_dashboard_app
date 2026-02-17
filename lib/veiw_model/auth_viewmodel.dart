@@ -1,4 +1,5 @@
 import 'package:coders_adda_app/models/login_model.dart';
+import 'package:coders_adda_app/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
 class AuthViewModel with ChangeNotifier {
@@ -13,26 +14,30 @@ class AuthViewModel with ChangeNotifier {
   bool get isLoggedIn => _currentUser != null;
   AppUser? get currentUser => _currentUser;
 
+  final AuthService _authService = AuthService();
 
-  Future<LoginResponse> loginWithPhone(String phoneNumber) async {
+  Future<LoginResponse> requestOtp(String mobile, {String? referralCode}) async {
     try {
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
 
-
-      await Future.delayed(Duration(seconds: 2));
-
-
-      _verificationId = 'mock_verification_id_${DateTime.now().millisecondsSinceEpoch}';
+      final response = await _authService.requestOtp(mobile, referralCode: referralCode);
       
       _isLoading = false;
       notifyListeners();
 
-      return LoginResponse(
-        success: true,
-        verificationId: _verificationId,
-      );
+      if (response['success'] == true) {
+        return LoginResponse(
+          success: true,
+          message: response['message'],
+          verificationId: 'api_sent', // We use this to trigger OTP UI
+        );
+      } else {
+        _errorMessage = response['message'] ?? 'Failed to send OTP';
+        notifyListeners();
+        return LoginResponse(success: false, message: _errorMessage);
+      }
     } catch (e) {
       _isLoading = false;
       _errorMessage = e.toString();
@@ -42,28 +47,36 @@ class AuthViewModel with ChangeNotifier {
   }
 
 
-  Future<LoginResponse> verifyOtp(String smsCode) async {
+  Future<LoginResponse> verifyOtp(String mobile, String otp, {String? referralCode}) async {
     try {
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
 
-
-      await Future.delayed(Duration(seconds: 2));
-
-
-      _currentUser = AppUser(
-        id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-        phone: '+91${_getMockPhone()}',
-      );
+      final response = await _authService.verifyOtp(mobile, otp, referralCode: referralCode);
       
-      _isLoading = false;
-      notifyListeners();
+      if (response['success'] == true) {
+        // Map response to APP user model
+        final userData = response['user'];
+        _currentUser = AppUser(
+          id: userData?['id'] ?? userData?['_id'] ?? 'user_id',
+          phone: mobile,
+        );
+        
+        _isLoading = false;
+        notifyListeners();
 
-      return LoginResponse(
-        success: true,
-        user: _currentUser,
-      );
+        return LoginResponse(
+          success: true,
+          user: _currentUser,
+          message: response['message'],
+        );
+      } else {
+        _isLoading = false;
+        _errorMessage = response['message'] ?? 'Verification failed';
+        notifyListeners();
+        return LoginResponse(success: false, message: _errorMessage);
+      }
     } catch (e) {
       _isLoading = false;
       _errorMessage = e.toString();
@@ -89,6 +102,7 @@ class AuthViewModel with ChangeNotifier {
 
 
   Future<void> signOut() async {
+    await _authService.logout();
     _currentUser = null;
     _verificationId = null;
     _errorMessage = null;

@@ -5,6 +5,8 @@ import 'package:coders_adda_app/views/my_owened_courses/my_learning_page.dart';
 import 'package:coders_adda_app/views/profile_pages/profile_page.dart';
 import 'package:coders_adda_app/views/shorts_pages/shorts_page.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:coders_adda_app/veiw_model/profile_viewmodel.dart';
 
 class MainNavigation extends StatefulWidget {
   @override
@@ -13,6 +15,15 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fetch user profile data at start
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ProfileViewModel>().fetchUserProfile();
+    });
+  }
 
   final List<Widget> _pages = [
     HomePage(),

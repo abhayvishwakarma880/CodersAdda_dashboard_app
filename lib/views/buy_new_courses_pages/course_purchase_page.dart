@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:coders_adda_app/utils/app_colors/app_theme.dart';
 import 'package:coders_adda_app/utils/app_sizer/app_sizer.dart';
 import 'package:coders_adda_app/models/course_model.dart';
+import 'package:coders_adda_app/services/course_service.dart';
+import 'package:coders_adda_app/veiw_model/profile_viewmodel.dart';
+import 'package:provider/provider.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class CourseCheckoutPage extends StatefulWidget {
   final Course course; 
@@ -24,6 +28,85 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
     Coupon(code: 'FLAT100', discount: 100, description: 'Flat ₹100 off', type: 'fixed'),
     Coupon(code: 'CODERS20', discount: 20, description: '20% off for Coders Adda', type: 'percentage'),
   ];
+
+  late Razorpay _razorpay;
+  final CourseService _courseService = CourseService();
+  bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    _couponController.dispose();
+    super.dispose();
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      final verifyBody = {
+        'razorpay_order_id': response.orderId,
+        'razorpay_payment_id': response.paymentId,
+        'razorpay_signature': response.signature,
+      };
+
+      final result = await _courseService.verifyPayment(verifyBody);
+
+      if (context.mounted) {
+        if (result['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Payment Verified Successfully!'), backgroundColor: Colors.green),
+          );
+          Navigator.pop(context, true); // Return true to indicate success
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'] ?? 'Payment Verification Failed'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Payment Failed: ${response.message}'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('External Wallet: ${response.walletName}'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -538,7 +621,7 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
             ),
             Expanded(
               child: ElevatedButton(
-                onPressed: _proceedToPayment,
+                onPressed: _isProcessing ? null : _proceedToPayment,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryColor,
                   padding: EdgeInsets.symmetric(
@@ -549,14 +632,16 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: Text(
-                  'Proceed to Pay',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: AppSizer.deviceSp16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: _isProcessing 
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Text(
+                      'Proceed to Pay',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: AppSizer.deviceSp16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
               ),
             ),
           ],
@@ -651,39 +736,57 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
     });
   }
 
-  void _proceedToPayment() {
-    // Here you would integrate with payment gateway
-    // For now, just show a confirmation dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Confirm Payment'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Course: ${widget.course.title}'),
-            Text('Amount: ₹${(widget.course.price * 1.18 - _discountAmount).toStringAsFixed(2)}'),
-            Text('Payment Method: $_selectedPaymentMethod'),
-            if (_isCouponApplied) Text('Coupon: $_selectedCoupon'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Process payment here
-              _processPayment();
-            },
-            child: Text('Confirm Payment'),
-          ),
-        ],
-      ),
-    );
+  void _proceedToPayment() async {
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      // 1. Create Order on Backend
+      final orderResponse = await _courseService.createOrder(widget.course.id);
+      
+      if (orderResponse['success'] == true) {
+        final profile = context.read<ProfileViewModel>().user;
+        
+        // 2. Open Razorpay Checkout
+        var options = {
+          'key': orderResponse['key'],
+          'amount': orderResponse['amount'],
+          'name': 'Coders Adda',
+          'order_id': orderResponse['orderId'],
+          'description': widget.course.title,
+          'timeout': 300, // in seconds
+          'prefill': {
+            'contact': profile?.mobile ?? '',
+            'email': profile?.email ?? '',
+            'name': profile?.name ?? ''
+          },
+          'theme': {
+            'color': '#2196F3' // Customizing to match primary color
+          }
+        };
+
+        _razorpay.open(options);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(orderResponse['message'] ?? 'Failed to create order'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    }
   }
 
   void _processPayment() {

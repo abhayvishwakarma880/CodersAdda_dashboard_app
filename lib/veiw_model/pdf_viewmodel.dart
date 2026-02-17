@@ -1,4 +1,5 @@
 import 'package:coders_adda_app/models/pdf_model.dart';
+import 'package:coders_adda_app/services/pdf_service.dart';
 import 'package:flutter/material.dart';
 
 class PdfViewModel with ChangeNotifier {
@@ -6,11 +7,14 @@ class PdfViewModel with ChangeNotifier {
   List<PdfCategory> _categories = [];
   String _selectedCategory = 'All';
   int _selectedTabIndex = 0;
+  bool _isLoading = false;
+  final PdfService _pdfService = PdfService();
 
   List<PdfItem> get allPdfs => _allPdfs;
   List<PdfCategory> get categories => _categories;
   String get selectedCategory => _selectedCategory;
   int get selectedTabIndex => _selectedTabIndex;
+  bool get isLoading => _isLoading;
 
   List<PdfItem> get freePdfs => _allPdfs.where((pdf) => pdf.isFree).toList();
   List<PdfItem> get paidPdfs => _allPdfs.where((pdf) => !pdf.isFree).toList();
@@ -25,19 +29,25 @@ class PdfViewModel with ChangeNotifier {
   }
 
   PdfViewModel() {
+    fetchCategories();
     _loadDemoData();
   }
 
-  void _loadDemoData() {
-    // Demo Categories
+  Future<void> fetchCategories() async {
+    _isLoading = true;
+    notifyListeners();
+    
+    final cats = await _pdfService.getEbookCategories();
     _categories = [
-      PdfCategory(name: 'All', pdfCount: 15, icon: '📚'),
-      PdfCategory(name: 'Programming', pdfCount: 6, icon: '💻'),
-      PdfCategory(name: 'Design', pdfCount: 3, icon: '🎨'),
-      PdfCategory(name: 'Business', pdfCount: 2, icon: '💼'),
-      PdfCategory(name: 'Science', pdfCount: 4, icon: '🔬'),
+      PdfCategory(id: 'all', name: 'All', pdfCount: 0, icon: '📚'),
+      ...cats
     ];
+    
+    _isLoading = false;
+    notifyListeners();
+  }
 
+  void _loadDemoData() {
     // Demo PDFs
     _allPdfs = [
       // Free PDFs

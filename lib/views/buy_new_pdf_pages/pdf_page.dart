@@ -40,14 +40,20 @@ class PdfPage extends StatelessWidget {
           ),
           body: Consumer<PdfViewModel>(
             builder: (context, viewModel, child) {
-              return Column(
-                children: [
-                  _buildCategoryFilter(viewModel),
-                  
-                  Expanded(
-                    child: _buildPdfsList(context, viewModel),
-                  ),
-                ],
+              if (viewModel.isLoading && viewModel.categories.length <= 1) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return RefreshIndicator(
+                onRefresh: () => viewModel.fetchCategories(),
+                child: Column(
+                  children: [
+                    _buildCategoryFilter(viewModel),
+                    
+                    Expanded(
+                      child: _buildPdfsList(context, viewModel),
+                    ),
+                  ],
+                ),
               );
             },
           ),

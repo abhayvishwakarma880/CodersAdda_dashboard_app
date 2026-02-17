@@ -3,6 +3,7 @@ import 'package:coders_adda_app/views/register_pages/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:coders_adda_app/utils/app_colors/app_theme.dart';
 import 'package:coders_adda_app/utils/app_sizer/app_sizer.dart';
+import 'package:coders_adda_app/services/api_client.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -10,6 +11,7 @@ class SplashScreen extends StatefulWidget {
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
+
 
 class _SplashScreenState extends State<SplashScreen> {
   @override
@@ -21,11 +23,18 @@ class _SplashScreenState extends State<SplashScreen> {
   void _navigateToNext() async {
     await Future.delayed(Duration(seconds: 2));
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => LoginPage()),
-      (route) => false,
-    );
+    final apiClient = ApiClient();
+    final token = await apiClient.getToken();
+
+    if (token != null && token.isNotEmpty) {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } else {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    }
   }
 
   @override

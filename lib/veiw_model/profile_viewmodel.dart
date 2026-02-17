@@ -1,26 +1,26 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:coders_adda_app/models/profile_model.dart';
+import 'package:coders_adda_app/services/profile_service.dart';
 import 'package:flutter/material.dart';
 
 class ProfileViewModel with ChangeNotifier {
-  UserProfile _user = UserProfile(
-    name: "Abc",
-    email: "abc@email.com",
-    phone: "+91 1234567890",
-    avatar: "https://i.pravatar.cc/300",
-    collegeName: "Indian Institute of Technology, Delhi",
-    course: "B.Tech Computer Science",
-    semester: "6th Semester",
-    technology: "Flutter, Android, Web Development",
-    skills: "Dart, Java, Python, JavaScript, React, Node.js",
-    bio: "Passionate mobile app developer with expertise in Flutter and Android. Love building innovative solutions and learning new technologies.",
-    githubUrl: "https://github.com/alexjohnson",
-    linkedinUrl: "https://linkedin.com/in/alexjohnson",
-    portfolioUrl: "https://alexjohnson.dev",
-    joinDate: DateTime.now().subtract(Duration(days: 180)),
-    completedCourses: 8,
-    ongoingCourses: 3,
-    learningProgress: 0.75,
-  );
+  final ProfileService _profileService = ProfileService();
+  
+  UserProfile? _user;
+  bool _isLoading = false;
+  String? _errorMessage;
+  File? _selectedImage;
+
+  UserProfile? get user => _user;
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+  File? get selectedImage => _selectedImage;
+
+  void setSelectedImage(File? image) {
+    _selectedImage = image;
+    notifyListeners();
+  }
 
   List<Achievement> _achievements = [
     Achievement(
@@ -45,13 +45,24 @@ class ProfileViewModel with ChangeNotifier {
 
   bool _notificationsEnabled = true;
 
-  UserProfile get user => _user;
   List<Achievement> get achievements => _achievements;
   bool get notificationsEnabled => _notificationsEnabled;
 
-  void updateProfile(UserProfile newProfile) {
-    _user = newProfile;
+  // Fetch Profile from API
+  Future<void> fetchUserProfile() async {
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
+
+    try {
+      _user = await _profileService.getUserProfile();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString();
+      notifyListeners();
+    }
   }
 
   void toggleNotifications(bool value) {
@@ -59,67 +70,128 @@ class ProfileViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  int get totalLearningHours {
-    return (user.completedCourses * 20) + (user.ongoingCourses * 10);
-  }
-
   String get memberSince {
-    final months = DateTime.now().difference(user.joinDate).inDays ~/ 30;
+    if (_user == null) return '0 months';
+    final months = DateTime.now().difference(_user!.createdAt).inDays ~/ 30;
     return '$months months';
   }
 
-
-   // Edit Profile Controllers
+  // Edit Profile Controllers
   TextEditingController nameController = TextEditingController();
   TextEditingController emailController = TextEditingController();
-  TextEditingController phoneController = TextEditingController();
   TextEditingController collegeController = TextEditingController();
   TextEditingController courseController = TextEditingController();
+  TextEditingController branchController = TextEditingController(); // Added Branch
   TextEditingController semesterController = TextEditingController();
-  TextEditingController technologyController = TextEditingController();
+  TextEditingController technologyController = TextEditingController(); // This will handle comma separated input
   TextEditingController githubController = TextEditingController();
   TextEditingController linkedinController = TextEditingController();
   TextEditingController portfolioController = TextEditingController();
   TextEditingController bioController = TextEditingController();
-  TextEditingController avatarController = TextEditingController();
+  TextEditingController skillsController = TextEditingController(); // Added Skills
   
   bool initialized = false;
 
-  void initializeWithUser(UserProfile user) {
+  void initializeWithUser(UserProfile user) { 
     if (initialized) return;
     
     nameController.text = user.name;
     emailController.text = user.email;
-    phoneController.text = user.phone;
-    collegeController.text = user.collegeName;
+    collegeController.text = user.college;
     courseController.text = user.course;
+    branchController.text = user.branch;
     semesterController.text = user.semester;
-    technologyController.text = user.technology;
-    githubController.text = user.githubUrl;
-    linkedinController.text = user.linkedinUrl;
-    portfolioController.text = user.portfolioUrl;
-    bioController.text = user.bio;
-    avatarController.text = user.avatar;
+    technologyController.text = user.technology.join(", ");
+    githubController.text = user.github;
+    linkedinController.text = user.linkedin;
+    portfolioController.text = user.portfolio;
+    bioController.text = user.about;
+    skillsController.text = user.skills.join(", ");
     
     initialized = true;
     notifyListeners();
   }
 
-  // Don't forget to dispose controllers
+  // Update Profile
+  Future<bool> updateUserProfile() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      // Prepare social links as JSON string
+      final socialLinks = jsonEncode({
+        'github': githubController.text.trim(),
+        'linkedin': linkedinController.text.trim(),
+        'portfolio': portfolioController.text.trim(),
+      });
+
+      // Prepare technology and skills as JSON array strings
+      final technologyList = technologyController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      final skillsList = skillsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+
+      final Map<String, String> fields = {
+        'name': nameController.text.trim(),
+        'email': emailController.text.trim(),
+        'about': bioController.text.trim(),
+        'college': collegeController.text.trim(),
+        'course': courseController.text.trim(),
+        'semester': semesterController.text.trim(),
+        'branch': branchController.text.trim().isEmpty ? 'Computer Science' : branchController.text.trim(),
+        'socialLinks': socialLinks,
+        'technology': jsonEncode(technologyList),
+        'skills': jsonEncode(skillsList),
+      };
+
+      await _profileService.updateProfileMultipart(fields, imageFile: _selectedImage);
+      
+      await fetchUserProfile(); // Refresh local data
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  void clearProfile() {
+    _user = null;
+    _selectedImage = null;
+    _errorMessage = null;
+    initialized = false;
+    nameController.clear();
+    emailController.clear();
+    collegeController.clear();
+    courseController.clear();
+    branchController.clear();
+    semesterController.clear();
+    technologyController.clear();
+    githubController.clear();
+    linkedinController.clear();
+    portfolioController.clear();
+    bioController.clear();
+    skillsController.clear();
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     nameController.dispose();
     emailController.dispose();
-    phoneController.dispose();
     collegeController.dispose();
     courseController.dispose();
+    branchController.dispose();
     semesterController.dispose();
     technologyController.dispose();
     githubController.dispose();
     linkedinController.dispose();
     portfolioController.dispose();
     bioController.dispose();
-    avatarController.dispose();
+    skillsController.dispose();
     super.dispose();
   }
 }
